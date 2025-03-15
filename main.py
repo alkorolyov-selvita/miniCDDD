@@ -1,169 +1,41 @@
-
 # # miniCDDD
 
+import numpy as np
+import pandas as pd
+
 import tensorflow as tf
+
+from preprocess import process_smiles_list
+from tokens import tokenization, pad_tokens_to_max_length_with_lookup, normalize_dataframe
 
 tf.config.list_physical_devices(device_type='GPU')
 
 # # Load data
 
-# For demonstration purposes, we have chosen a lightweight dataset. Specifically, we are utilizing the widely-recognized ZINC-250k dataset, which can be found at: https://www.kaggle.com/datasets/basu369victor/zinc250k
+# For demonstration purposes, we have chosen a lightweight dataset. Specifically,
+# we are utilizing the widely-recognized ZINC-250k dataset, which can be found at:
+# https://www.kaggle.com/datasets/basu369victor/zinc250k
 
-import pandas as pd
 
-df = pd.read_csv('250k_rndm_zinc_drugs_clean_3.csv')
+def prepare_dataset(filename):
+    # input_df = pd.read_csv('250k_rndm_zinc_drugs_clean_3.csv')
+    input_df = pd.read_csv(filename)
+    smiles_list = [smi.strip() for smi in input_df.smiles.tolist()]
 
-smiles_list = df["smiles"].tolist()
-smiles_list = [smile.strip() for smile in smiles_list]
+    df = process_smiles_list(smiles_list)
 
-# # Preprocessing
+    df, mean, std = normalize_dataframe(df)
+    df, lookup_table = tokenization(df)
+    df_padded, updated_lookup_table, max_length = pad_tokens_to_max_length_with_lookup(df, lookup_table)
 
-# During the data preprocessing stage, we referred to a portion of the CDDD source code. Although the original paper claims to use 9 features for training, including maximum/minimum partial charges, we only found 7 features in the source code.
+    return df_padded, updated_lookup_table, max_length
 
-from rdkit import Chem
-from rdkit.Chem.SaltRemover import SaltRemover
-from rdkit.Chem import Descriptors
-import numpy as np
-
-REMOVER = SaltRemover()
-ORGANIC_ATOM_SET = set([5, 6, 7, 8, 9, 15, 16, 17, 35, 53])
-
-# Please ensure to check on your own to determine if there are any duplicate values in the data
-def process_smiles_list(smiles_list):
-    valid_smiles_list = [smiles for smiles in smiles_list if Chem.MolFromSmiles(smiles)]
-    canonical_smiles, random_smiles, descriptors = [], [], []
-
-    for sml in valid_smiles_list:
-        try:
-            mol = Chem.MolFromSmiles(sml)
-            if not mol or not (set([atom.GetAtomicNum() for atom in mol.GetAtoms()]) <= ORGANIC_ATOM_SET):
-                continue
-
-            if filter_smiles(sml):
-                continue
-
-            sml = remove_salt_stereo(sml, REMOVER)
-            desc = get_descriptors(sml)
-            if np.isnan(desc).any():
-                continue
-
-            canonical_smiles.append(sml)
-            random_smiles.append(Chem.MolToSmiles(Chem.MolFromSmiles(sml), doRandom=True))
-            descriptors.append(desc)
-        except:
-            continue
-    
-    if len(canonical_smiles):
-        descriptor_names = [
-            "LogP", "Molecular Refractivity", "Balaban J", "Num of H Acceptors", 
-            "Num of H Donors", "Num of Valence Electrons", "Topological Polar Surface Area"
-        ]
-
-        return pd.DataFrame({
-            'canonical_smiles': canonical_smiles,
-            'random_smiles': random_smiles,
-            **{descriptor_names[i]: [desc[i] for desc in descriptors] for i in range(7)}
-        })
-        
-def filter_smiles(sml):
-    mol = Chem.MolFromSmiles(sml)
-    logp, mw = Descriptors.MolLogP(mol), Descriptors.MolWt(mol)
-    nha, nhd, nhe = Descriptors.NumHAcceptors(mol), Descriptors.NumHDonors(mol), Descriptors.HeavyAtomCount(mol)
-    if ((logp > -5) & (logp < 7) &
-            (mw > 12) & (mw < 600) &
-            (nha > 3) & (nha < 50)):
-        return True
-    return False
-
-def remove_salt_stereo(sml, remover):
-    stripped_sml = Chem.MolToSmiles(remover.StripMol(Chem.MolFromSmiles(sml), dontRemoveEverything=True), isomericSmiles=False)
-    return keep_largest_fragment(stripped_sml) if "." in stripped_sml else stripped_sml
-
-def keep_largest_fragment(sml):
-    return max([Chem.MolToSmiles(mol) for mol in Chem.GetMolFrags(Chem.MolFromSmiles(sml), asMols=True)], key=len, default=np.float("nan"))
-
-def get_descriptors(sml):
-    mol = Chem.MolFromSmiles(sml)
-    return [
-        Descriptors.MolLogP(mol), Descriptors.MolMR(mol), Descriptors.BalabanJ(mol),
-        Descriptors.NumHAcceptors(mol), Descriptors.NumHDonors(mol),
-        Descriptors.NumValenceElectrons(mol), Descriptors.TPSA(mol)
-    ]
-
-df = process_smiles_list(smiles_list)
-df.head()
-
-# # Tokenization & Normalization
-
-# For the tokenization process, we adopted the regular expression provided by [SmilesPE](https://github.com/XinhaoLi74/SmilesPE/blob/e5f27dfea0778966818ac0a9dd23ac646c62707d/SmilesPE/pretokenizer.py#L15-L18) for atom-wise tokenization. When it comes to padding and preparing both randomized and canonical smiles, our approach closely mirrors the original code. As for the normalization step, we strictly followed the methodology from the original source. This ensures a more stable training process for the classifier model. Without normalization, training this model would be challenging. Hence, we've saved the mean and standard deviation to ensure the model can revert predictions back to the original molecule descriptors values.
-
-import re
-
-# Ref: https://github.com/XinhaoLi74/SmilesPE/blob/e5f27dfea0778966818ac0a9dd23ac646c62707d/SmilesPE/pretokenizer.py#L15-L18
-def extract_atoms_from_smiles(smi):
-    pattern =  "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
-    regex = re.compile(pattern)
-    return [token for token in regex.findall(smi)]
-    
-def tokenization(df):
-    # Extract unique atoms from the canonical_smiles and create lookup table
-    all_atoms = set(atom for smiles in df['canonical_smiles'] for atom in extract_atoms_from_smiles(smiles))
-    lookup_table = {atom: idx for idx, atom in enumerate(sorted(all_atoms))}
-    
-    # Tokenize random_smiles using the lookup table and create a new 'tokens' column
-    df['input_tokens'] = df['random_smiles'].apply(lambda s: [lookup_table[atom] for atom in extract_atoms_from_smiles(s)])
-    df['output_tokens'] = df['canonical_smiles'].apply(lambda s: [lookup_table[atom] for atom in extract_atoms_from_smiles(s)])
-    return df, lookup_table
-
-def pad_tokens_to_max_length_with_lookup(df, lookup_table):
-    # Add a new ID for padding in the lookup table
-    padding_id = max(lookup_table.values()) + 1
-    lookup_table['<PAD>'] = padding_id
-    lookup_table['<SOS>'] = padding_id + 1
-    lookup_table['<EOS>'] = padding_id + 2
-    
-    # Find the maximum length from both the columns
-    max_length_input = df['input_tokens'].apply(len).max() + 2 # +2 for <SOS> and <EOS>
-    max_length_output = df['output_tokens'].apply(len).max() + 2 # +2 for <SOS> and <EOS>
-    max_length = max(max_length_input, max_length_output)
-
-    # Pad the tokens with the new padding ID
-    df['input_tokens'] = df['input_tokens'].apply(lambda x: [lookup_table['<SOS>']] + x + [lookup_table['<EOS>']] + [padding_id]*(max_length - len(x) - 2))
-    df['output_tokens'] = df['output_tokens'].apply(lambda x: [lookup_table['<SOS>']] + x + [lookup_table['<EOS>']] + [padding_id]*(max_length - len(x) - 2))
-    
-    return df, lookup_table, max_length
-
-def normalize_dataframe(df):
-    # Backup the 'canonical_smiles' and 'random_smiles' columns
-    canonical_smiles_col = df['canonical_smiles'].copy()
-    random_smiles_col = df['random_smiles'].copy()
-
-    # Drop the 'canonical_smiles' and 'random_smiles' columns
-    df = df.drop(columns=['canonical_smiles', 'random_smiles'])
-
-    # Compute mean and standard deviation for normalization
-    mean, std = df.mean(), df.std()
-
-    # Normalize the dataframe
-    df = (df - mean) / std
-
-    # Add the 'canonical_smiles' and 'random_smiles' columns back to the dataframe
-    df['canonical_smiles'] = canonical_smiles_col
-    df['random_smiles'] = random_smiles_col
-
-    return df, mean, std
-
-df, mean, std = normalize_dataframe(df)
-df, lookup_table = tokenization(df) 
-df_padded, updated_lookup_table, max_length = pad_tokens_to_max_length_with_lookup(df, lookup_table)
-
-df_padded.head()
 
 # # Prepare dataset
 
 # The CDDD model has two inputs and two labels. These two inputs correspond to the encoder and the decoder, with the encoder's input being the randomized SMILES. You can also explore other representations mentioned in the paper. It's worth noting that the original paper utilized the teacher forcing technique to stabilize the training of the decoder. As such, we've designed the decoder's input format to meet the requirements of teacher forcing. Regarding the two labels, they represent the outputs of the classifier and the decoder. The classifier's output is normalized, but if it's to be used for predicting molecular descriptors, it needs to be denormalized. The label for the decoder is the canonical SMILES.
 
-def generate_teacher_forcing_dataset(df):
+def train_val_split(df):
     # Create a tf.data.Dataset with teacher forcing
     dataset = tf.data.Dataset.from_tensor_slices((
         {
@@ -189,15 +61,19 @@ def generate_teacher_forcing_dataset(df):
     
     return train_dataset, val_dataset
 
-train_dataset, val_dataset = generate_teacher_forcing_dataset(df_padded)
+if __name__ == '__main__':
 
-for i, (inputs, outputs) in enumerate(train_dataset.take(1)):
-    print(f"Sample {i+1}:")
-    print("Encoder Inputs:", inputs['encoder_inputs'])
-    print("Decoder Inputs:", inputs['decoder_inputs'])
-    print("Decoder Outputs:", outputs['decoder'])
-    print("Classification Outputs:", outputs['classifier'])
-    print("\n")
+    df_padded, lookup_table, max_length = prepare_dataset('250k_rndm_zinc_drugs_clean_3.csv')
+
+    train_dataset, val_dataset = train_val_split(df_padded)
+
+    for i, (inputs, outputs) in enumerate(train_dataset.take(1)):
+        print(f"Sample {i+1}:")
+        print("Encoder Inputs:", inputs['encoder_inputs'])
+        print("Decoder Inputs:", inputs['decoder_inputs'])
+        print("Decoder Outputs:", outputs['decoder'])
+        print("Classification Outputs:", outputs['classifier'])
+        print("\n")
 
 # # Model
 
@@ -206,9 +82,8 @@ for i, (inputs, outputs) in enumerate(train_dataset.take(1)):
 # In terms of model design, for better clarity and understanding, we've chosen to construct the model using the Functional API approach. Here, we've decomposed the CDDD model into three components: encoder, decoder, and classifier. The original paper and source code explored various encoder architectures. However, in this repo, we only showcase the architecture deemed best in the original paper, where both the encoder and decoder are composed of RNNs. For the embedding section, we've adhered to the one-hot encoding method as described in the paper, rather than using an embedding layer. **Please note that the output dimension of the classifier is 7, not 9 as shown in the figure above.** Adding dropout and noise makes the model harder to converge. If you just want to quickly obtain model results, it's recommended to comment out the dropout and noise.
 
 import tensorflow as tf
-from tensorflow.keras.layers import Input, GRU, Dense, Concatenate, TextVectorization, Lambda, Dropout, GaussianNoise
+from tensorflow.keras.layers import Input, GRU, Dense, Concatenate, Lambda, Dropout, GaussianNoise
 from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
 
 tf.random.set_seed(42)
 vocab_size = len(lookup_table)
@@ -311,7 +186,6 @@ history = main_model.fit(train_dataset_batched, epochs=EPOCHS, validation_data=v
 # We have saved several model combinations, namely: encoder, encoder + classifier, and encoder + decoder. You can use them according to your needs. Additionally, we have saved the tokenizer in a `.json` file.
 
 # Save tokenizer
-import json
 
 def save_lookup_table(lookup_table, filename):
     with open(filename, 'w') as f:
