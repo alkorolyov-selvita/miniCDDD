@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+from lightning import LightningModule
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,8 +6,8 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
 
-class MiniCDDDLightning(pl.LightningModule):
-    """PyTorch Lightning module for miniCDDD"""
+class MiniCDDDLightning(LightningModule):
+    """Lightning module for miniCDDD"""
 
     def __init__(
             self,

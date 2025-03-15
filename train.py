@@ -1,8 +1,8 @@
 import os
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from pytorch_lightning.loggers import TensorBoardLogger
+from lightning import seed_everything, Trainer
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
+from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
 from models import MiniCDDD
 from lightning_module import MiniCDDDLightning
@@ -43,7 +43,7 @@ def train_minicddd(
         Trained MiniCDDDLightning model
     """
     # Set random seeds for reproducibility
-    pl.seed_everything(seed)
+    seed_everything(seed)
 
     # Create directory for outputs
     os.makedirs(output_dir, exist_ok=True)
@@ -90,17 +90,22 @@ def train_minicddd(
         mode='min'
     )
 
-    # Configure logger
-    logger = TensorBoardLogger(
+    # Configure loggers
+    tensorboard_logger = TensorBoardLogger(
         save_dir=os.path.join(output_dir, 'logs'),
         name='minicddd'
     )
 
+    csv_logger = CSVLogger(
+        save_dir=os.path.join(output_dir, 'logs'),
+        name='minicddd_csv'
+    )
+
     # Create trainer
-    trainer = pl.Trainer(
+    trainer = Trainer(
         max_epochs=epochs,
         callbacks=[checkpoint_callback, early_stopping],
-        logger=logger,
+        logger=[tensorboard_logger, csv_logger],
         log_every_n_steps=50,
         deterministic=True
     )

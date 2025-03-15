@@ -1,8 +1,9 @@
 import torch
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
 import numpy as np
-
+from lightning import seed_everything
 
 class TeacherForcingDataset(Dataset):
     """Dataset for teacher forcing training of SMILES sequences"""
@@ -57,19 +58,9 @@ def create_dataloaders(df, feature_columns, batch_size=64, val_split=0.2, num_wo
         tuple: (train_loader, val_loader)
     """
     # Set random seed for reproducibility
-    np.random.seed(seed)
-    torch.manual_seed(seed)
+    seed_everything(seed)
 
-    # Shuffle DataFrame indices
-    indices = np.random.permutation(len(df))
-    train_size = int(len(df) * (1 - val_split))
-
-    # Split into train and validation sets
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:]
-
-    train_df = df.iloc[train_indices].reset_index(drop=True)
-    val_df = df.iloc[val_indices].reset_index(drop=True)
+    train_df, val_df = train_test_split(df, test_size=val_split, random_state=seed)
 
     # Create datasets
     train_dataset = TeacherForcingDataset(train_df, feature_columns)
