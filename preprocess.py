@@ -6,6 +6,7 @@ import datamol as dm
 import pandas as pd
 import numpy as np
 from rdkit.Chem.SaltRemover import SaltRemover
+from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 from pandas.api.types import is_integer_dtype, is_float_dtype
 from joblib import Parallel, delayed, Memory
@@ -18,11 +19,6 @@ from chembl_structure_pipeline.standardizer import (update_mol_valences, remove_
                                                     remove_hs_from_mol, normalize_mol, uncharge_mol)
 
 mem = Memory('.cache', verbose=False)
-
-DESCRIPTORS = [
-    'MolLogP', 'MolMR', 'BalabanJ', 'NumHAcceptors',
-    'NumHDonors', 'NumValenceElectrons', 'MolMR', 'TPSA'
-]
 
 SALTS_SOLVENTS= """[Cl,Br,I]
 [Li,Na,K,Ca,Mg]
@@ -223,8 +219,6 @@ CCO	ETHANOL
 """
 REMOVER = SaltRemover(defnData=SALTS_SOLVENTS)
 
-
-
 def chunked_ser(series: pd.Series, size: int = 100):
     """
     Yield successive n-sized chunks from a Pandas Series.
@@ -311,6 +305,7 @@ def preprocess_smiles_ser(smiles: pd.Series, keep_stereo=True):
         mols = mols.apply(standardize_mol).dropna()
 
         # Remove salts, solvents
+        # remover = SaltRemover(defnData=SALTS_SOLVENTS)
         mols = mols.apply(REMOVER.StripMol).dropna()
 
         # Keep only single mols
@@ -331,7 +326,7 @@ def preprocess_smiles_parallel(smiles: pd.Series, keep_stereo=True, chunk_size=1
 
     res = Parallel(n_jobs=-4)(
         delayed(preprocess_smiles_ser)(smi, keep_stereo)
-        for smi in tqdm(chunked_ser(smiles, chunk_size), total=total))
+        for smi in tqdm(chunked_ser(smiles, chunk_size), total=total, desc='Preprocessing SMILES'))
 
     return pd.concat(res)
 
@@ -458,7 +453,7 @@ def calc_descriptors_parallel(smi_ser, descriptors):
 
     res = Parallel(n_jobs=-4)(
         delayed(calc_descriptor_ser)(smi, descriptors)
-        for smi in tqdm(chunked_ser(smi_ser, chunk_size), total=total))
+        for smi in tqdm(chunked_ser(smi_ser, chunk_size), total=total, desc='Descriptors'))
     return pd.concat(res)
 
 
@@ -470,6 +465,23 @@ def add_descriptors_parallel(df, descriptors, smiles_col='smiles', rename=None):
     return res
 
 """ ================= MISC ================ """
+
+def randomize_smiles(smiles: pd.Series):
+    def _randomize(smi):
+        return Chem.MolToSmiles(Chem.MolFromSmiles(smi), doRandom=True)
+
+    def _randomize_ser(smi_ser: pd.Series):
+        return smi_ser.apply(_randomize)
+
+    chunk_size = 100
+    total = len(smiles) // chunk_size + 1
+    res = Parallel(n_jobs=-4)(
+        delayed(_randomize_ser)(chunk)
+        for chunk in tqdm(chunked_ser(smiles, chunk_size), total=total, desc='Randomizing SMILES')
+    )
+    return pd.concat(res)
+
+
 
 
 def convert_to_dtypes32(df, na_int_cols=None):
@@ -495,3 +507,13 @@ def duplicated_activity_to_median(chembl_df):
 
 """ ================= MAIN FUNC ================ """
 
+def preprocess_dataset(df, keep_stereo, descriptors):
+    preprocess_smiles_inplace(df, smiles_col='smiles', keep_stereo=keep_stereo)
+    df = add_descriptors_parallel(df, descriptors)
+
+    scaler = StandardScaler()
+    df.loc[:, descriptors] = scaler.fit_transform(df[descriptors].values)
+
+    df['random_smiles'] = mem.cache(randomize_smiles)(df['smiles'])
+    df.rename(columns={'smiles': 'canonical_smiles'}, inplace=True)
+    return df, scaler

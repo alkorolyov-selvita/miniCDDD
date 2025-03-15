@@ -1,0 +1,30 @@
+name: cddd
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # general
+  - python=3.10
+  - numpy=1.26.4
+  - pandas=2.1.4
+  - zstandard=0.23.0
+  - joblib=1.4.2
+  - scikit-learn=1.5.2
+  - ipykernel
+  - notebook
+
+
+  # chem
+  - rdkit=2023.09.6
+  - libboost-python=1.84
+  - libboost=1.84
+  - mols2grid
+  - datamol
+  - chembl_structure_pipeline
+
+  # torch
+  - pytorch::pytorch=2.4.0
+  - pytorch-cuda=12.4
+
+#  - pip
+#  - pip:
