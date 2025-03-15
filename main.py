@@ -27,6 +27,10 @@ def prepare_dataset(filename, smiles_col=None):
 
 if __name__ == '__main__':
     df, scaler, lookup_table, max_length = prepare_dataset('data/250k_rndm_zinc_drugs_clean_3.csv', smiles_col='smiles')
+    print('max_length', max_length)
+    print(df.info())
+    print(lookup_table)
+
 
 
 
