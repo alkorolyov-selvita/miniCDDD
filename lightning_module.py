@@ -6,7 +6,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ExponentialLR
 
 
-class MiniCDDDLightning(LightningModule):
+class LitModel(LightningModule):
     """Lightning module for miniCDDD"""
 
     def __init__(
@@ -80,7 +80,7 @@ class MiniCDDDLightning(LightningModule):
 
         # Calculate losses
         reconstruction_loss = self.reconstruction_loss_fn(
-            reconstruction_logits.view(-1, self.model.vocab_size),
+            reconstruction_logits.view(-1, self.model.input_dim),
             decoder_outputs.reshape(-1)
         )
 

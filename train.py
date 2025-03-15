@@ -1,19 +1,29 @@
 import os
 import torch
+import tqdm
 from lightning import seed_everything, Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping, TQDMProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
 
+
 from models import MiniCDDD
-from lightning_module import MiniCDDDLightning
+from lightning_module import LitModel
 from dataset import create_dataloaders
 from utils import save_lookup_table, save_models
 
+
+class TrainOnlyBar(TQDMProgressBar):
+    def init_validation_tqdm(self):
+        bar = tqdm.tqdm(
+            disable=True,
+        )
+        return bar
 
 def train_minicddd(
         df,
         lookup_table,
         feature_columns,
+        max_input_length,
         latent_dim=512,
         batch_size=64,
         epochs=100,
@@ -30,6 +40,7 @@ def train_minicddd(
         df: Preprocessed DataFrame with tokenized SMILES
         lookup_table: Token to index mapping
         feature_columns: List of column names for property prediction
+        max_input_length: Max length of token input array
         latent_dim: Dimension of the latent space
         batch_size: Batch size for training
         epochs: Maximum number of training epochs
@@ -40,7 +51,7 @@ def train_minicddd(
         seed: Random seed for reproducibility
 
     Returns:
-        Trained MiniCDDDLightning model
+        Trained LitModel model
     """
     # Set random seeds for reproducibility
     seed_everything(seed)
@@ -67,7 +78,7 @@ def train_minicddd(
     )
 
     # Create Lightning module
-    lightning_module = MiniCDDDLightning(
+    lit_model = LitModel(
         model=model,
         learning_rate=learning_rate,
         scheduler_decay=scheduler_decay,
@@ -90,29 +101,26 @@ def train_minicddd(
         mode='min'
     )
 
-    # Configure loggers
-    tensorboard_logger = TensorBoardLogger(
-        save_dir=os.path.join(output_dir, 'logs'),
-        name='minicddd'
-    )
+
+    tqdm_train_bar = TrainOnlyBar()
 
     csv_logger = CSVLogger(
         save_dir=os.path.join(output_dir, 'logs'),
-        name='minicddd_csv'
+        name=None,
     )
 
     # Create trainer
     trainer = Trainer(
         max_epochs=epochs,
-        callbacks=[checkpoint_callback, early_stopping],
-        logger=[tensorboard_logger, csv_logger],
+        callbacks=[checkpoint_callback, early_stopping, tqdm_train_bar],
+        logger=[csv_logger],
         log_every_n_steps=50,
         deterministic=True
     )
 
     # Train the model
     trainer.fit(
-        model=lightning_module,
+        model=lit_model,
         train_dataloaders=train_loader,
         val_dataloaders=val_loader
     )
@@ -125,10 +133,10 @@ def train_minicddd(
     std = df[feature_columns].std().values
 
     save_models(
-        lightning_module=lightning_module,
+        lightning_module=lit_model,
         save_dir=models_dir,
         mean=mean,
         std=std
     )
 
-    return lightning_module
+    return lit_model

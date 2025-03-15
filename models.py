@@ -34,8 +34,12 @@ class Encoder(nn.Module):
 
         # Pass through GRU layers
         _, h1 = self.gru1(x_one_hot)
-        x2, h2 = self.gru2(h1.transpose(0, 1))
-        x3, h3 = self.gru3(h2.transpose(0, 1))
+        # Make h1 contiguous before transposing
+        h1_transposed = h1.contiguous().transpose(0, 1)
+        x2, h2 = self.gru2(h1_transposed)
+        # Make h2 contiguous before transposing
+        h2_transposed = h2.contiguous().transpose(0, 1)
+        x3, h3 = self.gru3(h2_transposed)
 
         # Concatenate hidden states
         h1 = h1.squeeze(0)
@@ -80,10 +84,10 @@ class Decoder(nn.Module):
         # Project latent to initial states
         states = F.relu(self.latent_to_states(latent))
 
-        # Split the states for each GRU layer
-        h1 = states[:, :512].unsqueeze(0)
-        h2 = states[:, 512:512 + 1024].unsqueeze(0)
-        h3 = states[:, 512 + 1024:].unsqueeze(0)
+        # Split the states for each GRU layer and make them contiguous
+        h1 = states[:, :512].contiguous().unsqueeze(0)  # Add contiguous() here
+        h2 = states[:, 512:512 + 1024].contiguous().unsqueeze(0)  # Add contiguous() here
+        h3 = states[:, 512 + 1024:].contiguous().unsqueeze(0)  # Add contiguous() here
 
         # Pass through GRU layers
         x1, _ = self.gru1(x_one_hot, h1)

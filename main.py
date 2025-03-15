@@ -10,7 +10,7 @@ from train import train_minicddd
 KEEP_STEREO = False
 DESCRIPTORS = [
     'MolLogP', 'MolMR', 'BalabanJ', 'NumHAcceptors',
-    'NumHDonors', 'NumValenceElectrons', 'TPSA'
+    'NumHDonors', 'NumValenceElectrons', 'TPSA',
 ]
 
 
@@ -31,18 +31,22 @@ if __name__ == '__main__':
     torch.manual_seed(42)
 
     df, scaler, lookup_table, max_length = prepare_dataset('data/250k_rndm_zinc_drugs_clean_3.csv', smiles_col='smiles')
+    # df, scaler, lookup_table, max_length = prepare_dataset('data/600k_chembl_filtered.smi.zst')
+
     print('max_length', max_length)
     print(df.info())
     print(lookup_table)
+
 
     # Train the model
     model = train_minicddd(
         df=df,
         lookup_table=lookup_table,
         feature_columns=DESCRIPTORS,
-        batch_size=64,
-        epochs=100,
-        output_dir='./output'
+        max_input_length=max_length,
+        batch_size=128,
+        epochs=5,
+        output_dir='./250k_zinc_output',
     )
 
     print("Training complete!")
