@@ -80,7 +80,7 @@ class LitModel(LightningModule):
 
         # Calculate losses
         reconstruction_loss = self.reconstruction_loss_fn(
-            reconstruction_logits.view(-1, self.model.input_dim),
+            reconstruction_logits.view(-1, self.model.vocab_size),
             decoder_outputs.reshape(-1)
         )
 

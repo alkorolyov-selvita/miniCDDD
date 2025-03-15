@@ -3,7 +3,7 @@
 import torch
 import pandas as pd
 
-from preprocess import preprocess_dataset
+from preprocess import preprocess_dataset, mem
 from tokens import tokenize_dataset
 from train import train_minicddd
 
@@ -29,9 +29,10 @@ def prepare_dataset(filename, smiles_col=None):
 if __name__ == '__main__':
     # Set random seed for reproducibility
     torch.manual_seed(42)
+    torch.set_float32_matmul_precision('medium')
 
-    df, scaler, lookup_table, max_length = prepare_dataset('data/250k_rndm_zinc_drugs_clean_3.csv', smiles_col='smiles')
-    # df, scaler, lookup_table, max_length = prepare_dataset('data/600k_chembl_filtered.smi.zst')
+    # df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/250k_rndm_zinc_drugs_clean_3.csv', smiles_col='smiles')
+    df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/600k_chembl_filtered.smi.zst')
 
     print('max_length', max_length)
     print(df.info())
@@ -46,7 +47,7 @@ if __name__ == '__main__':
         max_input_length=max_length,
         batch_size=128,
         epochs=5,
-        output_dir='./250k_zinc_output',
+        output_dir='./600k_chembl_output',
     )
 
     print("Training complete!")

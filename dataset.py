@@ -24,9 +24,9 @@ class TeacherForcingDataset(Dataset):
 
     def __getitem__(self, idx):
         # Get tokens for encoder and decoder
-        encoder_inputs = torch.tensor(self.df['input_tokens'].iloc[idx], dtype=torch.long)
-        decoder_inputs = torch.tensor(self.df['output_tokens'].iloc[idx][:-1], dtype=torch.long)  # all except last
-        decoder_outputs = torch.tensor(self.df['output_tokens'].iloc[idx][1:], dtype=torch.long)  # all except first
+        encoder_inputs = torch.tensor(self.df['input_tokens'].iloc[idx], dtype=torch.int64)
+        decoder_inputs = torch.tensor(self.df['output_tokens'].iloc[idx][:-1], dtype=torch.int64)  # all except last
+        decoder_outputs = torch.tensor(self.df['output_tokens'].iloc[idx][1:], dtype=torch.int64)  # all except first
 
         # Get molecular features
         classifier_outputs = torch.tensor(
