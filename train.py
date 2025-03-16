@@ -131,11 +131,12 @@ def train_minicddd(
     # Save the models
     save_lookup_table(lookup_table, os.path.join(output_dir, 'lookup_table.json'))
 
-    # Save models with the scaler
+    # Save models with the scaler and max_input_length
     save_models(
         lightning_module=lit_model,
         save_dir=models_dir,
-        scaler=scaler
+        scaler=scaler,
+        max_input_length=max_input_length
     )
 
     return lit_model

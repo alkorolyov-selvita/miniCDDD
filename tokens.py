@@ -25,7 +25,7 @@ class SmilesTokenizer:
 
         self.max_length = max_length
         try:
-            self.padding_id = self.lookup_table['<PAD>']
+            self.pad_id = self.lookup_table['<PAD>']
             self.sos_id = self.lookup_table['<SOS>']
             self.eos_id = self.lookup_table['<EOS>']
             self.unk_id = self.lookup_table['<UNK>']
@@ -45,10 +45,11 @@ class SmilesTokenizer:
 
     def _pad_tokens_to_max_length(self, tokens):
         """Pad token list to the maximum length with start and end tokens."""
-        if len(tokens) <= self.max_length - 2:
-            return [self.sos_id] + tokens + [self.eos_id] + [self.padding_id] * (self.max_length - len(tokens) - 2)
 
-        return [np.nan] * self.max_length
+        if len(tokens) <= self.max_length - 2:
+            return [self.sos_id] + tokens + [self.eos_id] + [self.pad_id] * (self.max_length - len(tokens) - 2)
+
+        return [self.sos_id] + tokens[: self.max_length - 2] + [self.eos_id]
 
     def tokenize(self, smiles_string):
         """Tokenize a SMILES string according to the lookup table, handling unknown tokens."""

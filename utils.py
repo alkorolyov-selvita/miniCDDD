@@ -17,7 +17,7 @@ def load_lookup_table(filename):
         return json.load(f)
 
 
-def save_models(lightning_module, save_dir="./models", scaler=None):
+def save_models(lightning_module, save_dir="./models", scaler=None, max_input_length=None):
     """
     Save all models and necessary files
 
@@ -25,6 +25,7 @@ def save_models(lightning_module, save_dir="./models", scaler=None):
         lightning_module: Trained PyTorch Lightning module
         save_dir: Directory to save models
         scaler: StandardScaler instance for denormalization (optional)
+        max_input_length: Maximum input sequence length (optional)
     """
     os.makedirs(save_dir, exist_ok=True)
 
@@ -43,6 +44,11 @@ def save_models(lightning_module, save_dir="./models", scaler=None):
     # Save the scaler if provided
     if scaler is not None:
         joblib.dump(scaler, os.path.join(save_dir, "scaler.joblib"))
+
+    # Save max_input_length if provided
+    if max_input_length is not None:
+        with open(os.path.join(save_dir, "max_input_length.json"), 'w') as f:
+            json.dump({"max_input_length": max_input_length}, f)
 
 
 def load_model(model_path, vocab_size, latent_dim=512, prop_dims=7):
@@ -87,6 +93,16 @@ def load_classifier(model_path, latent_dim=512, output_dim=7):
 def load_scaler(scaler_path):
     """Load the StandardScaler"""
     return joblib.load(scaler_path)
+
+
+def load_max_input_length(filename):
+    """Load the maximum input length from a JSON file"""
+    try:
+        with open(filename, 'r') as f:
+            data = json.load(f)
+            return data.get('max_input_length')
+    except FileNotFoundError:
+        return None
 
 
 def build_classifier(encoder, classifier, scaler):
