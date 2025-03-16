@@ -14,7 +14,7 @@ class LitModel(LightningModule):
             model,
             learning_rate=5e-4,
             scheduler_decay=0.9,
-            scheduler_steps=50000,
+            scheduler_epochs=10,
             reconstruction_weight=1.0,
             classification_weight=1.0
     ):
@@ -25,7 +25,7 @@ class LitModel(LightningModule):
             model: The MiniCDDD model
             learning_rate: Initial learning rate
             scheduler_decay: Decay rate for learning rate scheduler
-            scheduler_steps: Steps for scheduler
+            scheduler_epochs: Steps for scheduler
             reconstruction_weight: Weight for reconstruction loss
             classification_weight: Weight for classification loss
         """
@@ -33,7 +33,7 @@ class LitModel(LightningModule):
         self.model = model
         self.learning_rate = learning_rate
         self.scheduler_decay = scheduler_decay
-        self.scheduler_steps = scheduler_steps
+        self.scheduler_epochs = scheduler_epochs
         self.reconstruction_weight = reconstruction_weight
         self.classification_weight = classification_weight
 
@@ -58,8 +58,8 @@ class LitModel(LightningModule):
             'optimizer': optimizer,
             'lr_scheduler': {
                 'scheduler': scheduler,
-                'interval': 'step',
-                'frequency': self.scheduler_steps,
+                'interval': 'epoch',
+                'frequency': self.scheduler_epochs,
             }
         }
 

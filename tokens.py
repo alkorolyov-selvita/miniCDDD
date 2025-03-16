@@ -11,12 +11,6 @@ from tqdm import tqdm
 SMILES_PATTERN = r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
 SMILES_REGEX = re.compile(SMILES_PATTERN)
 
-
-def extract_tokens_from_smiles(smi):
-    """Extract tokens from a SMILES string using the defined pattern."""
-    return SMILES_REGEX.findall(smi)
-
-
 class SmilesTokenizer:
     """A tokenizer for SMILES strings based on a lookup table."""
 
@@ -32,7 +26,7 @@ class SmilesTokenizer:
         self.max_length = max_length
         try:
             self.padding_id = self.lookup_table['<PAD>']
-            self.sos_id = self.lookup_table['< SOS >']
+            self.sos_id = self.lookup_table['<SOS>']
             self.eos_id = self.lookup_table['<EOS>']
             self.unk_id = self.lookup_table['<UNK>']
         except KeyError as e:
@@ -68,6 +62,11 @@ class SmilesTokenizer:
         return np.array([self.tokenize(smiles) for smiles in smiles_list])
 
 
+def extract_tokens_from_smiles(smi):
+    """Extract tokens from a SMILES string using the defined pattern."""
+    return SMILES_REGEX.findall(smi)
+
+
 def build_lookup_table(smiles_list):
     """Build a lookup table from a list of SMILES strings."""
     all_tokens = set()
@@ -79,7 +78,7 @@ def build_lookup_table(smiles_list):
     next_idx = len(lookup_table)
     lookup_table['<UNK>'] = next_idx
     lookup_table['<PAD>'] = next_idx + 1
-    lookup_table['< SOS >'] = next_idx + 2
+    lookup_table['<SOS>'] = next_idx + 2
     lookup_table['<EOS>'] = next_idx + 3
 
     return lookup_table
@@ -96,10 +95,10 @@ def encode_smiles_with_lookup(df, lookup_table, input_col='random_smiles', outpu
     return df
 
 
-def filter_by_token_length(df, threshold_quantile=0.95):
+def filter_by_token_length(df, len_quantile=0.99):
     """Filter out molecules with tokens longer than the threshold."""
     token_lengths = df['input_tokens'].apply(len)
-    threshold = token_lengths.quantile(threshold_quantile)
+    threshold = token_lengths.quantile(len_quantile)
     return df[token_lengths < threshold].copy()
 
 
@@ -110,7 +109,7 @@ def pad_dataset_tokens(df, lookup_table):
     max_length = max(max_length_input, max_length_output)
 
     padding_id = lookup_table['<PAD>']
-    sos_id = lookup_table['< SOS >']
+    sos_id = lookup_table['<SOS>']
     eos_id = lookup_table['<EOS>']
 
     df['input_tokens'] = df['input_tokens'].apply(lambda x:
@@ -121,18 +120,20 @@ def pad_dataset_tokens(df, lookup_table):
     return df, max_length
 
 
-def tokenize_dataset(df):
+def tokenize_dataset(df, len_quantile=0.95):
     """High-level function to tokenize a dataset of SMILES strings."""
     # 1. Build lookup table from canonical SMILES
     lookup_table = build_lookup_table(df['canonical_smiles'])
 
-    # 2. Encode SMILES using the lookup table
+    print('Tokenizing SMILES strings...')
     df = encode_smiles_with_lookup(df, lookup_table)
 
     # 3. Filter out molecules with overly long token sequences
-    df = filter_by_token_length(df)
+    print('Filtering tokens by sequence length...')
+    df = filter_by_token_length(df, len_quantile)
 
     # 4. Pad tokens to consistent length
+    print('Padding token sequences...')
     df, max_length = pad_dataset_tokens(df, lookup_table)
 
     return df, lookup_table, max_length

@@ -14,14 +14,14 @@ DESCRIPTORS = [
 ]
 
 
-def prepare_dataset(filename, smiles_col=None):
+def prepare_dataset(filename, smiles_col=None, len_quantile=0.99):
     if smiles_col is None:
         df = pd.read_csv(filename, header=None, names=['smiles'])
     else:
         df = pd.read_csv(filename).rename(columns={smiles_col: 'smiles'})[['smiles']]
 
     df, scaler = preprocess_dataset(df, KEEP_STEREO, DESCRIPTORS)
-    df, lookup_table, max_length = tokenize_dataset(df)
+    df, lookup_table, max_length = tokenize_dataset(df, len_quantile)
 
     return df, scaler, lookup_table, max_length
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         feature_columns=DESCRIPTORS,
         max_input_length=max_length,
         batch_size=128,
-        epochs=5,
+        epochs=100,
         output_dir='./600k_chembl_output',
     )
 

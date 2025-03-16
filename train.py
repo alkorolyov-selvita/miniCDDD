@@ -29,7 +29,7 @@ def train_minicddd(
         epochs=100,
         learning_rate=5e-4,
         scheduler_decay=0.9,
-        scheduler_steps=50000,
+        scheduler_epochs=10,
         output_dir='./output',
         seed=42
 ):
@@ -46,7 +46,7 @@ def train_minicddd(
         epochs: Maximum number of training epochs
         learning_rate: Initial learning rate
         scheduler_decay: Decay rate for learning rate scheduler
-        scheduler_steps: Number of steps between learning rate updates
+        scheduler_epochs: Number of steps between learning rate updates
         output_dir: Directory to save outputs
         seed: Random seed for reproducibility
 
@@ -82,7 +82,7 @@ def train_minicddd(
         model=model,
         learning_rate=learning_rate,
         scheduler_decay=scheduler_decay,
-        scheduler_steps=scheduler_steps
+        scheduler_epochs=scheduler_epochs
     )
 
     # Define callbacks

@@ -33,7 +33,7 @@ class MiniCDDDInference:
 
         # Load special token IDs
         self.pad_id = self.lookup_table.get('<PAD>', 0)
-        self.sos_id = self.lookup_table.get('< SOS >', 1)
+        self.sos_id = self.lookup_table.get('<SOS>', 1)
         self.eos_id = self.lookup_table.get('<EOS>', 2)
         self.unk_id = self.lookup_table.get('<UNK>', 3)
 
