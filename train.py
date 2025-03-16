@@ -24,6 +24,7 @@ def train_minicddd(
         lookup_table,
         feature_columns,
         max_input_length,
+        scaler=None,
         latent_dim=512,
         batch_size=64,
         epochs=100,
@@ -41,6 +42,7 @@ def train_minicddd(
         lookup_table: Token to index mapping
         feature_columns: List of column names for property prediction
         max_input_length: Max length of token input array
+        scaler: StandardScaler instance used to normalize features
         latent_dim: Dimension of the latent space
         batch_size: Batch size for training
         epochs: Maximum number of training epochs
@@ -129,15 +131,11 @@ def train_minicddd(
     # Save the models
     save_lookup_table(lookup_table, os.path.join(output_dir, 'lookup_table.json'))
 
-    # Get mean and std from the original data for denormalization
-    mean = df[feature_columns].mean().values
-    std = df[feature_columns].std().values
-
+    # Save models with the scaler
     save_models(
         lightning_module=lit_model,
         save_dir=models_dir,
-        mean=mean,
-        std=std
+        scaler=scaler
     )
 
     return lit_model

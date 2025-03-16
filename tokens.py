@@ -95,7 +95,7 @@ def encode_smiles_with_lookup(df, lookup_table, input_col='random_smiles', outpu
     return df
 
 
-def filter_by_token_length(df, len_quantile=0.99):
+def filter_by_token_length(df, len_quantile=0.95):
     """Filter out molecules with tokens longer than the threshold."""
     token_lengths = df['input_tokens'].apply(len)
     threshold = token_lengths.quantile(len_quantile)

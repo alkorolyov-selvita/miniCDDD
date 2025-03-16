@@ -1,8 +1,8 @@
 import torch
 import json
 import os
-import numpy as np
-from models import MiniCDDD, Encoder, Decoder, Classifier
+import joblib
+from models import MiniCDDD, Encoder, Decoder, Classifier, ScalerTransformLayer, ClassifierWithScaler, Seq2SeqModel
 
 
 def save_lookup_table(lookup_table, filename):
@@ -17,15 +17,14 @@ def load_lookup_table(filename):
         return json.load(f)
 
 
-def save_models(lightning_module, save_dir="./models", mean=None, std=None):
+def save_models(lightning_module, save_dir="./models", scaler=None):
     """
     Save all models and necessary files
 
     Args:
         lightning_module: Trained PyTorch Lightning module
         save_dir: Directory to save models
-        mean: Mean values for denormalization (optional)
-        std: Standard deviation values for denormalization (optional)
+        scaler: StandardScaler instance for denormalization (optional)
     """
     os.makedirs(save_dir, exist_ok=True)
 
@@ -41,13 +40,9 @@ def save_models(lightning_module, save_dir="./models", mean=None, std=None):
     # Save the classifier
     torch.save(lightning_module.get_classifier().state_dict(), os.path.join(save_dir, "classifier_model.pt"))
 
-    # Save normalization parameters if provided
-    if mean is not None and std is not None:
-        np.savez(
-            os.path.join(save_dir, "normalization_params.npz"),
-            mean=mean,
-            std=std
-        )
+    # Save the scaler if provided
+    if scaler is not None:
+        joblib.dump(scaler, os.path.join(save_dir, "scaler.joblib"))
 
 
 def load_model(model_path, vocab_size, latent_dim=512, prop_dims=7):
@@ -89,54 +84,12 @@ def load_classifier(model_path, latent_dim=512, output_dim=7):
     return classifier
 
 
-def load_normalization_params(params_path):
-    """Load normalization parameters"""
-    params = np.load(params_path)
-    return params['mean'], params['std']
+def load_scaler(scaler_path):
+    """Load the StandardScaler"""
+    return joblib.load(scaler_path)
 
 
-class DenormalizationLayer(torch.nn.Module):
-    """Layer to denormalize the output of the classifier"""
-
-    def __init__(self, mean, std):
-        super().__init__()
-        self.register_buffer("mean", torch.tensor(mean, dtype=torch.float32))
-        self.register_buffer("std", torch.tensor(std, dtype=torch.float32))
-
-    def forward(self, x):
-        return x * self.std + self.mean
-
-
-def build_classifier_with_denormalization(encoder, classifier, mean, std):
-    """Build a classifier model with denormalization"""
-    denorm_layer = DenormalizationLayer(mean, std)
-
-    class ClassifierWithDenorm(torch.nn.Module):
-        def __init__(self, encoder, classifier, denorm_layer):
-            super().__init__()
-            self.encoder = encoder
-            self.classifier = classifier
-            self.denorm_layer = denorm_layer
-
-        def forward(self, x):
-            latent = self.encoder(x)
-            props = self.classifier(latent)
-            return self.denorm_layer(props)
-
-    return ClassifierWithDenorm(encoder, classifier, denorm_layer)
-
-
-def build_seq2seq_model(encoder, decoder):
-    """Build a sequence-to-sequence model from encoder and decoder"""
-
-    class Seq2SeqModel(torch.nn.Module):
-        def __init__(self, encoder, decoder):
-            super().__init__()
-            self.encoder = encoder
-            self.decoder = decoder
-
-        def forward(self, encoder_inputs, decoder_inputs):
-            latent = self.encoder(encoder_inputs)
-            return self.decoder(decoder_inputs, latent)
-
-    return Seq2SeqModel(encoder, decoder)
+def build_classifier(encoder, classifier, scaler):
+    """Build a classifier model with scaler transformation"""
+    scaler_layer = ScalerTransformLayer(scaler)
+    return ClassifierWithScaler(encoder, classifier, scaler_layer)

@@ -1,14 +1,15 @@
 import torch
 import numpy as np
+
+from models import Seq2SeqModel
 from utils import (
     load_lookup_table,
     load_model,
     load_encoder,
     load_decoder,
     load_classifier,
-    load_normalization_params,
-    build_classifier_with_denormalization,
-    build_seq2seq_model
+    load_scaler,
+    build_classifier,
 )
 from tokens import extract_tokens_from_smiles
 
@@ -33,7 +34,7 @@ class MiniCDDDInference:
 
         # Load special token IDs
         self.pad_id = self.lookup_table.get('<PAD>', 0)
-        self.sos_id = self.lookup_table.get('<SOS>', 1)
+        self.sos_id = self.lookup_table.get('< SOS >', 1)
         self.eos_id = self.lookup_table.get('<EOS>', 2)
         self.unk_id = self.lookup_table.get('<UNK>', 3)
 
@@ -42,21 +43,21 @@ class MiniCDDDInference:
         self.decoder = load_decoder(f"{model_dir}/decoder_model.pt", self.vocab_size)
         self.classifier = load_classifier(f"{model_dir}/classifier_model.pt")
 
-        # Load normalization parameters if available
+        # Load scaler if available
         try:
-            self.mean, self.std = load_normalization_params(f"{model_dir}/normalization_params.npz")
+            self.scaler = load_scaler(f"{model_dir}/scaler.joblib")
         except FileNotFoundError:
-            self.mean, self.std = None, None
+            self.scaler = None
 
         # Create combined models
-        if self.mean is not None and self.std is not None:
-            self.property_model = build_classifier_with_denormalization(
-                self.encoder, self.classifier, self.mean, self.std
+        if self.scaler is not None:
+            self.property_model = build_classifier(
+                self.encoder, self.classifier, self.scaler
             )
         else:
             self.property_model = None
 
-        self.seq2seq_model = build_seq2seq_model(self.encoder, self.decoder)
+        self.seq2seq_model = Seq2SeqModel(self.encoder, self.decoder)
 
         # Move models to device
         self.encoder.to(self.device)
@@ -140,7 +141,7 @@ class MiniCDDDInference:
             Numpy array of predicted properties
         """
         if self.property_model is None:
-            raise ValueError("Property model not available. Normalization parameters might be missing.")
+            raise ValueError("Property model not available. Scaler might be missing.")
 
         # Tokenize the SMILES
         token_ids = self.tokenize_smiles(smiles)

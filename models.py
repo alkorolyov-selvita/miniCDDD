@@ -168,3 +168,40 @@ class MiniCDDD(nn.Module):
     def predict_properties(self, latent):
         """Predict properties from latent space"""
         return self.classifier(latent)
+
+
+class ScalerTransformLayer(torch.nn.Module):
+    """Layer that applies StandardScaler inverse transform"""
+
+    def __init__(self, scaler):
+        super().__init__()
+        self.register_buffer("mean", torch.tensor(scaler.mean_, dtype=torch.float32))
+        self.register_buffer("scale", torch.tensor(scaler.scale_, dtype=torch.float32))
+
+    def forward(self, x):
+        return x * self.scale + self.mean
+
+
+class ClassifierWithScaler(torch.nn.Module):
+    def __init__(self, encoder, classifier, scaler_layer):
+        super().__init__()
+        self.encoder = encoder
+        self.classifier = classifier
+        self.scaler_layer = scaler_layer
+
+    def forward(self, x):
+        latent = self.encoder(x)
+        props = self.classifier(latent)
+        return self.scaler_layer(props)
+
+
+class Seq2SeqModel(torch.nn.Module):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def forward(self, encoder_inputs, decoder_inputs):
+        latent = self.encoder(encoder_inputs)
+        return self.decoder(decoder_inputs, latent)
+

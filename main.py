@@ -45,13 +45,10 @@ if __name__ == '__main__':
         lookup_table=lookup_table,
         feature_columns=DESCRIPTORS,
         max_input_length=max_length,
+        scaler=scaler,  # Pass the scaler directly
         batch_size=128,
         epochs=100,
         output_dir='./600k_chembl_output',
     )
 
     print("Training complete!")
-
-
-
-
