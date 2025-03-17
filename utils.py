@@ -40,14 +40,14 @@ def save_models(lightning_module, save_dir="./models", scaler=None, max_input_le
     # Save the full model
     torch.save(lightning_module.model.state_dict(), models_dir / "miniCDDD_model.pt")
 
-    # Save the encoder
-    torch.save(lightning_module.get_encoder().state_dict(), models_dir / "encoder_model.pt")
-
-    # Save the decoder
-    torch.save(lightning_module.get_decoder().state_dict(), models_dir / "decoder_model.pt")
-
-    # Save the classifier
-    torch.save(lightning_module.get_classifier().state_dict(), models_dir / "classifier_model.pt")
+    # # Save the encoder
+    # torch.save(lightning_module.get_encoder().state_dict(), models_dir / "encoder_model.pt")
+    #
+    # # Save the decoder
+    # torch.save(lightning_module.get_decoder().state_dict(), models_dir / "decoder_model.pt")
+    #
+    # # Save the classifier
+    # torch.save(lightning_module.get_classifier().state_dict(), models_dir / "classifier_model.pt")
 
     save_cddd_encoder(lightning_module, lookup_table, max_input_length, models_dir)
 

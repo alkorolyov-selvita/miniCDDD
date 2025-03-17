@@ -96,6 +96,12 @@ def encode_smiles_with_lookup(df, lookup_table, input_col='random_smiles', outpu
     return df
 
 
+def get_max_token_length(df, quantile=0.95):
+    max_input_len = df['input_tokens'].apply(len).quantile(quantile)
+    max_output_len = df['output_tokens'].apply(len).quantile(quantile)
+    return max(max_input_len, max_output_len) + 2 # +2 for SOS and EOS
+
+
 def filter_by_token_length(df, len_quantile=0.95):
     """Filter out molecules with tokens longer than the threshold."""
     token_lengths = df['input_tokens'].apply(len)
@@ -103,22 +109,21 @@ def filter_by_token_length(df, len_quantile=0.95):
     return df[token_lengths < threshold].copy()
 
 
-def pad_dataset_tokens(df, lookup_table):
+def pad_dataset_tokens(df, lookup_table, max_length):
     """Pad tokens in the dataset to a consistent length."""
-    max_length_input = df['input_tokens'].apply(len).max() + 2  # +2 for SOS and EOS
-    max_length_output = df['output_tokens'].apply(len).max() + 2
-    max_length = max(max_length_input, max_length_output)
-
-    padding_id = lookup_table['<PAD>']
+    pad_id = lookup_table['<PAD>']
     sos_id = lookup_table['<SOS>']
     eos_id = lookup_table['<EOS>']
 
-    df['input_tokens'] = df['input_tokens'].apply(lambda x:
-                                                  [sos_id] + x + [eos_id] + [padding_id] * (max_length - len(x) - 2))
-    df['output_tokens'] = df['output_tokens'].apply(lambda x:
-                                                    [sos_id] + x + [eos_id] + [padding_id] * (max_length - len(x) - 2))
+    def _pad_tokens_to_max_length(tokens, max_length):
+        if len(tokens) <= max_length - 2:
+            return [sos_id] + tokens + [eos_id] + [pad_id] * (max_length - len(tokens) - 2)
+        return [sos_id] + tokens[: max_length - 2] + [eos_id]
 
-    return df, max_length
+    df['input_tokens'] = df['input_tokens'].apply(_pad_tokens_to_max_length, args=(max_length, ))
+    df['output_tokens'] = df['output_tokens'].apply(_pad_tokens_to_max_length, args=(max_length, ))
+
+    return df
 
 
 def tokenize_dataset(df, len_quantile=0.95):
@@ -130,11 +135,10 @@ def tokenize_dataset(df, len_quantile=0.95):
     df = encode_smiles_with_lookup(df, lookup_table)
 
     # 3. Filter out molecules with overly long token sequences
-    print('Filtering tokens by sequence length...')
-    df = filter_by_token_length(df, len_quantile)
+    max_length = get_max_token_length(df, len_quantile)
 
     # 4. Pad tokens to consistent length
     print('Padding token sequences...')
-    df, max_length = pad_dataset_tokens(df, lookup_table)
+    df = pad_dataset_tokens(df, lookup_table, max_length)
 
     return df, lookup_table, max_length

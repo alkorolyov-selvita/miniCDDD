@@ -49,7 +49,7 @@ if __name__ == '__main__':
         scaler=scaler,  # Pass the scaler directly
         batch_size=128,
         epochs=1,
-        output_dir='./output_test',
+        output_dir='./1k_test',
     )
 
     print("Training complete!")
