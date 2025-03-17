@@ -5,8 +5,7 @@ import torch
 import tqdm
 from lightning import seed_everything, Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping, TQDMProgressBar
-from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger
-
+from lightning.pytorch.loggers import CSVLogger
 
 from models import MiniCDDD
 from lightning_module import LitModel
@@ -21,6 +20,7 @@ class TrainOnlyBar(TQDMProgressBar):
         )
         return bar
 
+
 def train_minicddd(
         df,
         lookup_table,
@@ -34,7 +34,7 @@ def train_minicddd(
         scheduler_decay=0.9,
         scheduler_epochs=10,
         output_dir='./output',
-        seed=42
+        seed=42,
 ):
     """
     Train the miniCDDD model
@@ -104,7 +104,6 @@ def train_minicddd(
         mode='min'
     )
 
-
     tqdm_train_bar = TrainOnlyBar()
 
     csv_logger = CSVLogger(
@@ -129,15 +128,13 @@ def train_minicddd(
         val_dataloaders=val_loader
     )
 
-    # Save the models
-    save_lookup_table(lookup_table, os.path.join(output_dir, 'lookup_table.json'))
-
-    # Save models with the scaler and max_input_length
+    # Save models
     save_models(
         lightning_module=lit_model,
         save_dir=output_dir,
+        lookup_table=lookup_table,
         scaler=scaler,
-        max_input_length=max_input_length
+        max_input_length=max_input_length,
     )
 
     return lit_model

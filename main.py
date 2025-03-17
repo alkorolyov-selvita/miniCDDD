@@ -32,7 +32,8 @@ if __name__ == '__main__':
     torch.set_float32_matmul_precision('medium')
 
     # df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/250k_rndm_zinc_drugs_clean_3.csv', smiles_col='smiles')
-    df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/600k_chembl_filtered.smi.zst')
+    # df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/600k_chembl_filtered.smi.zst')
+    df, scaler, lookup_table, max_length = mem.cache(prepare_dataset)('data/1k_test.smi')
 
     print('max_length', max_length)
     print(df.info())
@@ -47,8 +48,8 @@ if __name__ == '__main__':
         max_input_length=max_length,
         scaler=scaler,  # Pass the scaler directly
         batch_size=128,
-        epochs=100,
-        output_dir='./600k_chembl_output',
+        epochs=1,
+        output_dir='./output_test',
     )
 
     print("Training complete!")
