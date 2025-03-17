@@ -54,7 +54,7 @@ def save_models(lightning_module, save_dir="./models", scaler=None, max_input_le
     # Save max_input_length if provided
     if max_input_length is not None:
         with open(save_dir /"max_input_length.json", 'w') as f:
-            json.dump({"max_input_length": max_input_length}, f)
+            json.dump({"max_input_length": int(max_input_length)}, f)
 
 
 def load_model(model_path, vocab_size, latent_dim=512, prop_dims=7):
