@@ -216,7 +216,7 @@ class SMILESEncoder:
         self.lookup_table = load_lookup_table(lookup_table_path)
         self.vocab_size = len(self.lookup_table)
 
-        self.max_input_length = load_max_input_length(model_dir / 'max_input_length.json')
+        self.max_input_length = load_max_input_length(save_dir / 'max_input_length.json')
 
         # Initialize the tokenizer
         self.tokenizer = SmilesTokenizer(lookup_table=self.lookup_table, max_length=self.max_input_length)

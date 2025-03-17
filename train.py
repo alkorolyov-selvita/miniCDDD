@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import torch
 import tqdm
 from lightning import seed_everything, Trainer
@@ -59,9 +61,8 @@ def train_minicddd(
     seed_everything(seed)
 
     # Create directory for outputs
-    os.makedirs(output_dir, exist_ok=True)
-    models_dir = os.path.join(output_dir, 'models')
-    os.makedirs(models_dir, exist_ok=True)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Create dataloaders
     train_loader, val_loader = create_dataloaders(
@@ -134,7 +135,7 @@ def train_minicddd(
     # Save models with the scaler and max_input_length
     save_models(
         lightning_module=lit_model,
-        save_dir=models_dir,
+        save_dir=output_dir,
         scaler=scaler,
         max_input_length=max_input_length
     )

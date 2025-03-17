@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 import json
 import os
@@ -27,27 +29,31 @@ def save_models(lightning_module, save_dir="./models", scaler=None, max_input_le
         scaler: StandardScaler instance for denormalization (optional)
         max_input_length: Maximum input sequence length (optional)
     """
-    os.makedirs(save_dir, exist_ok=True)
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    models_dir = save_dir / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
 
     # Save the full model
-    torch.save(lightning_module.model.state_dict(), os.path.join(save_dir, "miniCDDD_model.pt"))
+    torch.save(lightning_module.model.state_dict(), models_dir /"miniCDDD_model.pt")
 
     # Save the encoder
-    torch.save(lightning_module.get_encoder().state_dict(), os.path.join(save_dir, "encoder_model.pt"))
+    torch.save(lightning_module.get_encoder().state_dict(), models_dir /"encoder_model.pt")
 
     # Save the decoder
-    torch.save(lightning_module.get_decoder().state_dict(), os.path.join(save_dir, "decoder_model.pt"))
+    torch.save(lightning_module.get_decoder().state_dict(), models_dir /"decoder_model.pt")
 
     # Save the classifier
-    torch.save(lightning_module.get_classifier().state_dict(), os.path.join(save_dir, "classifier_model.pt"))
+    torch.save(lightning_module.get_classifier().state_dict(), models_dir /"classifier_model.pt")
 
     # Save the scaler if provided
     if scaler is not None:
-        joblib.dump(scaler, os.path.join(save_dir, "scaler.joblib"))
+        joblib.dump(scaler, save_dir /"scaler.joblib")
 
     # Save max_input_length if provided
     if max_input_length is not None:
-        with open(os.path.join(save_dir, "max_input_length.json"), 'w') as f:
+        with open(save_dir /"max_input_length.json", 'w') as f:
             json.dump({"max_input_length": max_input_length}, f)
 
 
@@ -65,28 +71,28 @@ def load_model(model_path, vocab_size, latent_dim=512, prop_dims=7):
         Loaded MiniCDDD model
     """
     model = MiniCDDD(vocab_size, latent_dim, prop_dims)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, weights_only=True))
     return model
 
 
 def load_encoder(model_path, vocab_size, latent_dim=512):
     """Load just the encoder component"""
     encoder = Encoder(vocab_size, latent_dim)
-    encoder.load_state_dict(torch.load(model_path))
+    encoder.load_state_dict(torch.load(model_path, weights_only=True))
     return encoder
 
 
 def load_decoder(model_path, vocab_size, latent_dim=512):
     """Load just the decoder component"""
     decoder = Decoder(vocab_size, latent_dim)
-    decoder.load_state_dict(torch.load(model_path))
+    decoder.load_state_dict(torch.load(model_path, weights_only=True))
     return decoder
 
 
 def load_classifier(model_path, latent_dim=512, output_dim=7):
     """Load just the classifier component"""
     classifier = Classifier(latent_dim, output_dim)
-    classifier.load_state_dict(torch.load(model_path))
+    classifier.load_state_dict(torch.load(model_path, weights_only=True))
     return classifier
 
 
@@ -96,13 +102,9 @@ def load_scaler(scaler_path):
 
 
 def load_max_input_length(filename):
-    """Load the maximum input length from a JSON file"""
-    try:
-        with open(filename, 'r') as f:
-            data = json.load(f)
-            return data.get('max_input_length')
-    except FileNotFoundError:
-        return None
+    with open(filename, 'r') as f:
+        data = json.load(f)
+        return data.get('max_input_length')
 
 
 def build_classifier(encoder, classifier, scaler):
