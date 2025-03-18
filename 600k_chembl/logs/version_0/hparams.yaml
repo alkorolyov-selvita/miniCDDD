@@ -1,0 +1,5 @@
+classification_weight: 1.0
+learning_rate: 0.0005
+reconstruction_weight: 1.0
+scheduler_decay: 0.9
+scheduler_epochs: 10

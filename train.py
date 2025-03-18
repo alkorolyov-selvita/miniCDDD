@@ -116,7 +116,7 @@ def train_minicddd(
         max_epochs=epochs,
         callbacks=[checkpoint_callback, early_stopping, tqdm_train_bar],
         logger=[csv_logger],
-        precision='32',
+        precision='16-true',
         log_every_n_steps=50,
         deterministic=True,
     )
