@@ -31,7 +31,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         # One-hot encode the input
-        x_one_hot = F.one_hot(x.long(), self.vocab_size).to(torch.float16)
+        x_one_hot = F.one_hot(x.long(), self.vocab_size).to(torch.bfloat16)
 
         # Apply dropout
         x_one_hot = self.dropout(x_one_hot)
@@ -83,7 +83,7 @@ class Decoder(nn.Module):
         batch_size = x.size(0)
 
         # One-hot encode the input
-        x_one_hot = F.one_hot(x.long(), self.vocab_size).to(torch.float16)
+        x_one_hot = F.one_hot(x.long(), self.vocab_size).to(torch.bfloat16)
 
         # Project latent to initial states
         states = F.relu(self.latent_to_states(latent))
@@ -287,7 +287,7 @@ class CDDDEncoder(torch.nn.Module):
         self.encoder.eval()  # Set to evaluation mode
         with torch.no_grad():
             for batch in batches:
-                batch_vector = self.encoder(batch).cpu().numpy()
+                batch_vector = self.encoder(batch).cpu().to(torch.float32).numpy()
                 latent_vectors.append(batch_vector)
 
         # Combine results

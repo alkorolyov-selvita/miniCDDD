@@ -127,7 +127,7 @@ def build_classifier(encoder, classifier, scaler):
     return ClassifierWithScaler(encoder, classifier, scaler_layer)
 
 
-def load_cddd_encoder(model_path):
+def load_cddd_encoder(model_path, weights_only=True):
     """
     Load a CDDDEncoder model
 
@@ -141,7 +141,7 @@ def load_cddd_encoder(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load the saved data
-    data = torch.load(model_path, map_location=device, weights_only=True)
+    data = torch.load(model_path, map_location=device, weights_only=weights_only)
 
     # Extract metadata
     lookup_table = data['lookup_table']
@@ -163,5 +163,6 @@ def load_cddd_encoder(model_path):
 
     # Move to device
     cddd_encoder.to(device)
+    cddd_encoder.to(torch.bfloat16)
 
     return cddd_encoder

@@ -70,8 +70,8 @@ class LitModel(LightningModule):
         return self._common_step(batch, batch_idx, 'val')
 
     def _common_step(self, batch, batch_idx, stage):
-        encoder_inputs = batch['encoder_inputs'].to(torch.float16)
-        decoder_inputs = batch['decoder_inputs'].to(torch.float16)
+        encoder_inputs = batch['encoder_inputs'].to(torch.bfloat16)
+        decoder_inputs = batch['decoder_inputs'].to(torch.bfloat16)
         decoder_outputs = batch['decoder_outputs']
         classifier_targets = batch['classifier_outputs']
 
