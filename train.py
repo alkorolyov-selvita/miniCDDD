@@ -7,10 +7,9 @@ from lightning import seed_everything, Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping, TQDMProgressBar
 from lightning.pytorch.loggers import CSVLogger
 
-from models import MiniCDDD
+from models import MiniCDDD, save_lookup_table, save_models
 from lightning_module import LitModel
 from dataset import create_dataloaders
-from utils import save_lookup_table, save_models
 
 
 class TrainOnlyBar(TQDMProgressBar):

@@ -3,16 +3,8 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from models import Seq2SeqModel
-from utils import (
-    load_lookup_table,
-    load_encoder,
-    load_decoder,
-    load_classifier,
-    load_scaler,
-    build_classifier,
-    load_max_input_length,
-)
+from models import Seq2SeqModel, load_lookup_table, load_encoder, load_decoder, load_classifier, load_scaler, \
+    load_max_input_length, build_classifier
 from tokens import SmilesTokenizer
 
 
