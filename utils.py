@@ -127,7 +127,7 @@ def build_classifier(encoder, classifier, scaler):
     return ClassifierWithScaler(encoder, classifier, scaler_layer)
 
 
-def load_cddd_encoder(model_path, weights_only=True):
+def load_cddd_encoder(model_path, weights_only=False):
     """
     Load a CDDDEncoder model
 
@@ -163,6 +163,8 @@ def load_cddd_encoder(model_path, weights_only=True):
 
     # Move to device
     cddd_encoder.to(device)
+
+    # Convert to proper dtype
     cddd_encoder.to(torch.bfloat16)
 
     return cddd_encoder
